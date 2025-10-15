@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { useCart } from "@/context/CartContext";
+import { PrismaClient } from "@prisma/client";
 
 interface CartItem {
   id: number;
@@ -19,17 +20,15 @@ const CheckoutPage = () => {
   const [orderSuccess, setOrderSuccess] = useState(false);
   const [customerInfo, setCustomerInfo] = useState({
     email: "",
-    cardNumber: "",
-    expiry: "",
-    cvv: "",
     name: "",
     address: "",
+    phone: "",
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Calculate totals
   const subtotal = state.total;
-  const tax = subtotal * 0.08; // 8% tax
+  const tax = subtotal * 0.05; // 5% tax
   const shipping = 0; // Free shipping
   const total = subtotal + tax + shipping;
 
@@ -61,30 +60,18 @@ const CheckoutPage = () => {
       newErrors.email = "Email is invalid";
     }
 
-    if (!customerInfo.cardNumber) {
-      newErrors.cardNumber = "Card number is required";
-    } else if (!/^\d{16}$/.test(customerInfo.cardNumber.replace(/\s/g, ""))) {
-      newErrors.cardNumber = "Card number must be 16 digits";
-    }
-
-    if (!customerInfo.expiry) {
-      newErrors.expiry = "Expiry date is required";
-    } else if (!/^(0[1-9]|1[0-2])\/?([0-9]{2})$/.test(customerInfo.expiry)) {
-      newErrors.expiry = "Expiry date format should be MM/YY";
-    }
-
-    if (!customerInfo.cvv) {
-      newErrors.cvv = "CVV is required";
-    } else if (!/^\d{3,4}$/.test(customerInfo.cvv)) {
-      newErrors.cvv = "CVV must be 3 or 4 digits";
-    }
-
     if (!customerInfo.name) {
-      newErrors.name = "Name on card is required";
+      newErrors.name = "Full name is required";
     }
 
     if (!customerInfo.address) {
       newErrors.address = "Shipping address is required";
+    }
+    
+    if (!customerInfo.phone) {
+      newErrors.phone = "Phone number is required";
+    } else if (!/^\d{10,15}$/.test(customerInfo.phone.replace(/[\s\-\(\)]/g, ""))) {
+      newErrors.phone = "Phone number must be 10-15 digits";
     }
 
     setErrors(newErrors);
@@ -99,16 +86,36 @@ const CheckoutPage = () => {
     }
 
     try {
-      // In a real application, this would integrate with a payment gateway
-      // For this example, we'll just simulate a successful purchase
-      await new Promise((resolve) => setTimeout(resolve, 1000)); // Simulate API call
+      // Send customer information and cart items to the API
+      const response = await fetch('/api/orders', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: customerInfo.email,
+          name: customerInfo.name,
+          address: customerInfo.address,
+          phone: customerInfo.phone,
+          cartItems: state.items,
+          total: total,
+        }),
+      });
 
-      // Clear the cart after successful purchase
-      dispatch({ type: "CLEAR_CART" });
+      const result = await response.json();
 
-      setOrderSuccess(true);
+      if (result.success) {
+        // Clear the cart after successful order placement
+        dispatch({ type: "CLEAR_CART" });
+
+        setOrderSuccess(true);
+      } else {
+        console.error("Failed to place order:", result.message);
+        alert("Failed to place order: " + result.message);
+      }
     } catch (err) {
       console.error("Error processing checkout:", err);
+      alert("An error occurred while processing your order. Please try again.");
     }
   };
 
@@ -118,11 +125,11 @@ const CheckoutPage = () => {
         <div className="bg-white p-8 rounded-xl shadow-md max-w-md w-full mx-4 text-center">
           <div className="text-green-500 text-5xl mb-4">✓</div>
           <h2 className="text-2xl font-bold text-gray-800 mb-4">
-            Order Successful!
+            Order Placed!
           </h2>
           <p className="text-gray-600 mb-6">
-            Thank you for your purchase. Your order has been processed
-            successfully.
+            Thank you! Your order information has been collected. Your order has
+            been placed successfully.
           </p>
           <Link
             href="/"
@@ -157,7 +164,9 @@ const CheckoutPage = () => {
         <div className="bg-white rounded-xl shadow-md overflow-hidden max-w-6xl mx-auto">
           <div className="p-6 border-b border-gray-200">
             <h1 className="text-2xl font-bold text-gray-800">Checkout</h1>
-            <p className="text-gray-600">Complete your purchase</p>
+            <p className="text-gray-600">
+              Provide your information to complete your order
+            </p>
           </div>
 
           <div className="p-6">
@@ -212,19 +221,21 @@ const CheckoutPage = () => {
                   <div className="mt-6 pt-6 border-t border-gray-200">
                     <div className="flex justify-between py-1">
                       <span className="text-gray-600">Subtotal</span>
-                      <span className="font-medium">
+                      <span className="font-medium text-black">
                         ${subtotal.toFixed(2)}
                       </span>
                     </div>
                     <div className="flex justify-between py-1">
                       <span className="text-gray-600">Shipping</span>
-                      <span className="font-medium">
+                      <span className="font-medium text-black">
                         ${shipping.toFixed(2)}
                       </span>
                     </div>
                     <div className="flex justify-between py-1">
                       <span className="text-gray-600">Tax</span>
-                      <span className="font-medium">${tax.toFixed(2)}</span>
+                      <span className="font-medium text-black">
+                        ${tax.toFixed(2)}
+                      </span>
                     </div>
                     <div className="flex justify-between py-3 mt-2 border-t border-gray-200">
                       <span className="font-semibold text-gray-800">Total</span>
@@ -239,7 +250,7 @@ const CheckoutPage = () => {
               {/* Payment form */}
               <div>
                 <h2 className="text-lg font-semibold text-gray-800 mb-4">
-                  Customer Information
+                  Contact & Shipping Information
                 </h2>
                 <form onSubmit={handleCheckout} className="space-y-4">
                   <div>
@@ -255,7 +266,7 @@ const CheckoutPage = () => {
                       name="email"
                       value={customerInfo.email}
                       onChange={handleInputChange}
-                      className={`w-full px-3 py-2 border ${
+                      className={`w-full px-3 py-2 border text-black ${
                         errors.email ? "border-red-500" : "border-gray-300"
                       } rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500`}
                       placeholder="your.email@example.com"
@@ -280,7 +291,7 @@ const CheckoutPage = () => {
                       name="name"
                       value={customerInfo.name}
                       onChange={handleInputChange}
-                      className={`w-full px-3 py-2 border ${
+                      className={`w-full px-3 text-black py-2 border ${
                         errors.name ? "border-red-500" : "border-gray-300"
                       } rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500`}
                       placeholder="John Doe"
@@ -315,95 +326,36 @@ const CheckoutPage = () => {
                     )}
                   </div>
 
-                  <h2 className="text-lg font-semibold text-gray-800 mt-6 mb-4">
-                    Payment Information
-                  </h2>
-
                   <div>
                     <label
-                      htmlFor="cardNumber"
+                      htmlFor="phone"
                       className="block text-sm font-medium text-gray-700 mb-1"
                     >
-                      Card Number *
+                      Phone Number *
                     </label>
                     <input
-                      type="text"
-                      id="cardNumber"
-                      name="cardNumber"
-                      value={customerInfo.cardNumber}
+                      type="tel"
+                      id="phone"
+                      name="phone"
+                      value={customerInfo.phone}
                       onChange={handleInputChange}
-                      className={`w-full px-3 py-2 border text-black ${
-                        errors.cardNumber ? "border-red-500" : "border-gray-300"
+                      className={`w-full px-3 py-2 border ${
+                        errors.phone ? "border-red-500" : "border-gray-300"
                       } rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500`}
-                      placeholder="1234 5678 9012 3456"
-                      maxLength={19} // Format: 1234 5678 9012 3456
+                      placeholder="123-456-7890"
                     />
-                    {errors.cardNumber && (
+                    {errors.phone && (
                       <p className="mt-1 text-sm text-red-600">
-                        {errors.cardNumber}
+                        {errors.phone}
                       </p>
                     )}
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label
-                        htmlFor="expiry"
-                        className="block text-sm font-medium text-gray-700 mb-1"
-                      >
-                        Expiry Date *
-                      </label>
-                      <input
-                        type="text"
-                        id="expiry"
-                        name="expiry"
-                        value={customerInfo.expiry}
-                        onChange={handleInputChange}
-                        className={`w-full px-3 py-2 text-black border ${
-                          errors.expiry ? "border-red-500" : "border-gray-300"
-                        } rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500`}
-                        placeholder="MM/YY"
-                        maxLength={5}
-                      />
-                      {errors.expiry && (
-                        <p className="mt-1 text-sm text-red-600">
-                          {errors.expiry}
-                        </p>
-                      )}
-                    </div>
-
-                    <div>
-                      <label
-                        htmlFor="cvv"
-                        className="block text-sm font-medium text-gray-700 mb-1"
-                      >
-                        CVV *
-                      </label>
-                      <input
-                        type="text"
-                        id="cvv"
-                        name="cvv"
-                        value={customerInfo.cvv}
-                        onChange={handleInputChange}
-                        className={`w-full px-3 py-2 text-black border ${
-                          errors.cvv ? "border-red-500" : "border-gray-300"
-                        } rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500`}
-                        placeholder="123"
-                        maxLength={4}
-                      />
-                      {errors.cvv && (
-                        <p className="mt-1 text-sm text-red-600">
-                          {errors.cvv}
-                        </p>
-                      )}
-                    </div>
                   </div>
 
                   <button
                     type="submit"
                     className="w-full bg-green-600 hover:bg-green-700 text-white font-medium py-3 px-4 rounded-md transition-colors duration-300 mt-6"
                   >
-                    Complete Purchase - ${total.toFixed(2)}
+                    Place Order - ${total.toFixed(2)}
                   </button>
                 </form>
               </div>
