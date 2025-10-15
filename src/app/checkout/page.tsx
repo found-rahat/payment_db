@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCart } from "@/context/CartContext";
 import { PrismaClient } from "@prisma/client";
 
@@ -17,6 +18,7 @@ interface CartItem {
 
 const CheckoutPage = () => {
   const { state, dispatch } = useCart();
+  const router = useRouter();
   const [orderSuccess, setOrderSuccess] = useState(false);
   const [customerInfo, setCustomerInfo] = useState({
     email: "",
@@ -89,33 +91,45 @@ const CheckoutPage = () => {
     }
 
     try {
-      // Send customer information and cart items to the API
-      const response = await fetch("/api/orders", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
+      if (paymentMethod === "instant_payment") {
+        // For instant payment, redirect to payment page with customer info
+        const queryString = new URLSearchParams({
           email: customerInfo.email,
           name: customerInfo.name,
           address: customerInfo.address,
           phone: customerInfo.phone,
-          paymentMethod: paymentMethod,
-          cartItems: state.items,
-          total: total,
-        }),
-      });
-
-      const result = await response.json();
-
-      if (result.success) {
-        // Clear the cart after successful order placement
-        dispatch({ type: "CLEAR_CART" });
-
-        setOrderSuccess(true);
+        }).toString();
+        
+        router.push(`/payment?${queryString}`);
       } else {
-        console.error("Failed to place order:", result.message);
-        alert("Failed to place order: " + result.message);
+        // For cash on delivery, proceed directly to order placement
+        const response = await fetch("/api/orders", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            email: customerInfo.email,
+            name: customerInfo.name,
+            address: customerInfo.address,
+            phone: customerInfo.phone,
+            paymentMethod: paymentMethod,
+            cartItems: state.items,
+            total: total,
+          }),
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          // Clear the cart after successful order placement
+          dispatch({ type: "CLEAR_CART" });
+
+          setOrderSuccess(true);
+        } else {
+          console.error("Failed to place order:", result.message);
+          alert("Failed to place order: " + result.message);
+        }
       }
     } catch (err) {
       console.error("Error processing checkout:", err);
@@ -398,9 +412,13 @@ const CheckoutPage = () => {
 
                   <button
                     type="submit"
-                    className="w-full bg-green-600 hover:bg-green-700 text-white font-medium py-3 px-4 rounded-md transition-colors duration-300 mt-6"
+                    className={`w-full ${
+                      paymentMethod === 'instant_payment' 
+                        ? 'bg-blue-600 hover:bg-blue-700' 
+                        : 'bg-green-600 hover:bg-green-700'
+                    } text-white font-medium py-3 px-4 rounded-md transition-colors duration-300 mt-6`}
                   >
-                    Place Order - ৳{total.toFixed(2)}
+                    {paymentMethod === 'instant_payment' ? 'Continue to Payment' : 'Place Order'} - ৳{total.toFixed(2)}
                   </button>
                 </form>
               </div>
