@@ -112,13 +112,14 @@ const CheckoutPage = () => {
         const result = await response.json();
 
         if (result.success) {
-          // Redirect to the payment page with customer info and order ID
+          // Redirect to the payment page with customer info, order ID, and total
           const queryString = new URLSearchParams({
             email: customerInfo.email,
             name: customerInfo.name,
             address: customerInfo.address,
             phone: customerInfo.phone,
-            orderId: result.orderId,
+            order_id: result.orderId,
+            total: total.toString(),
           }).toString();
           
           router.push(`/payment?${queryString}`);

@@ -1,63 +1,36 @@
 "use client";
 
-import React, { useState } from "react";
+import { createPayPosPayment, getCustomerByOrderId } from "./action";
+import React, { useEffect, useState } from "react";
 import { useCart } from "@/context/CartContext";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 
 // Inner component that uses client-side hooks
 function PaymentPageContent() {
-  const { state, dispatch } = useCart();
+  const { state } = useCart();
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const [customerInfo, setCustomerInfo] = useState({
-    email: searchParams.get("email") || "",
-    name: searchParams.get("name") || "",
-    address: searchParams.get("address") || "",
-    phone: searchParams.get("phone") || "",
-  });
+  const orderId = searchParams.get("order_id");
+  const [customerInfo, setCustomerInfo] = useState<any>(null);
+  useEffect(() => {
+    const fetchCustomer = async () => {
+      if (!orderId) return;
+      const customer = await getCustomerByOrderId(Number(orderId));
+      if (customer) setCustomerInfo(customer);
+    };
+    fetchCustomer();
+  }, [orderId]);
 
-  const orderId = searchParams.get("orderId") || "";
-  // const [orderSuccess, setOrderSuccess] = useState(false);
+  if (!customerInfo) {
+    return <div className="p-6 text-center">Loading customer info...</div>;
+  }
 
-  // Calculate totals
   const subtotal = state.total;
-  const tax = subtotal * 0.05; // 5% tax
-  const shipping = 0; // Free shipping
+  const tax = subtotal * 0.05;
+  const shipping = 0;
   const total = subtotal + tax + shipping;
-
-  // const handlePayNow = async () => {
-  //   // In a real implementation, this would process payment via a payment gateway
-  //   // For now, we'll just show a success message since the order is already created
-
-  //   // Clear the cart after successful payment
-  //   dispatch({ type: "CLEAR_CART" });
-
-  //   setOrderSuccess(true);
-  // };
-
-  // if (orderSuccess) {
-  //   return (
-  //     <div className="flex items-center justify-center">
-  //       <div className="bg-white p-8 rounded-xl shadow-md max-w-md w-full mx-4 text-center">
-  //         <div className="text-green-500 text-5xl mb-4">✓</div>
-  //         <h2 className="text-2xl font-bold text-gray-800 mb-4">
-  //           Payment Successful!
-  //         </h2>
-  //         <p className="text-gray-600 mb-6">
-  //           Thank you! Your payment has been processed successfully.
-  //         </p>
-  //         <button
-  //           onClick={() => router.push("/")}
-  //           className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-md inline-block"
-  //         >
-  //           Continue Shopping
-  //         </button>
-  //       </div>
-  //     </div>
-  //   );
-  // }
 
   if (state.items.length === 0) {
     return (
@@ -219,7 +192,19 @@ function PaymentPageContent() {
                 </div>
 
                 <button
-                  // onClick={handlePayNow}
+                  onClick={async () => {
+                    try {
+                      const resPayPosUrl = await createPayPosPayment(
+                        customerInfo.id,
+                        total,
+                        window.location.host,
+                        window.location.protocol
+                      );
+                      if (resPayPosUrl) window.open(resPayPosUrl, "_blank");
+                    } catch (err) {
+                      console.log(err);
+                    }
+                  }}
                   className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-md transition-colors duration-300"
                 >
                   Pay Now - ৳{total.toFixed(2)}
