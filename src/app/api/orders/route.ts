@@ -3,9 +3,9 @@ import { prisma } from '@/lib/prisma';
 
 export async function POST(request: NextRequest) {
   try {
-    const { email, name, address, phone, cartItems, total } = await request.json();
+    const { email, name, address, phone, paymentMethod, cartItems, total } = await request.json();
 
-    console.log('Received order data:', { email, name, address, phone, cartItems, total });
+    console.log('Received order data:', { email, name, address, phone, paymentMethod, cartItems, total });
 
     // Check if customer already exists, if not create a new one
     let customer = await prisma.customer.findUnique({
@@ -31,6 +31,7 @@ export async function POST(request: NextRequest) {
       data: {
         customerId: customer.id,
         totalAmount: total,
+        paymentMethod: paymentMethod || 'cash_on_delivery',
         status: 'pending',
       },
     });

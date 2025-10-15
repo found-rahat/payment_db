@@ -168,7 +168,7 @@ const ProductList: React.FC = () => {
                 </p>
                 <div className="flex justify-between items-center mt-4">
                   <span className="text-lg font-bold text-gray-900">
-                    ${product.price.toFixed(2)}
+                    ৳{product.price.toFixed(2)}
                   </span>
                   <div className="flex space-x-2">
                     <button
