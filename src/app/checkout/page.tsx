@@ -92,15 +92,40 @@ const CheckoutPage = () => {
 
     try {
       if (paymentMethod === "instant_payment") {
-        // For instant payment, redirect to payment page with customer info
-        const queryString = new URLSearchParams({
-          email: customerInfo.email,
-          name: customerInfo.name,
-          address: customerInfo.address,
-          phone: customerInfo.phone,
-        }).toString();
-        
-        router.push(`/payment?${queryString}`);
+        // For instant payment, first store the order in the database
+        const response = await fetch("/api/orders", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            email: customerInfo.email,
+            name: customerInfo.name,
+            address: customerInfo.address,
+            phone: customerInfo.phone,
+            paymentMethod: paymentMethod,
+            cartItems: state.items,
+            total: total,
+          }),
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          // Redirect to the payment page with customer info and order ID
+          const queryString = new URLSearchParams({
+            email: customerInfo.email,
+            name: customerInfo.name,
+            address: customerInfo.address,
+            phone: customerInfo.phone,
+            orderId: result.orderId,
+          }).toString();
+          
+          router.push(`/payment?${queryString}`);
+        } else {
+          console.error("Failed to create order:", result.message);
+          alert("Failed to create order: " + result.message);
+        }
       } else {
         // For cash on delivery, proceed directly to order placement
         const response = await fetch("/api/orders", {

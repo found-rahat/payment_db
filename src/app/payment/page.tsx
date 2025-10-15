@@ -1,32 +1,25 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useCart } from "@/context/CartContext";
 import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 
-interface CartItem {
-  id: number;
-  name: string;
-  price: number;
-  description: string;
-  image: string | null;
-  category: string;
-  quantity: number;
-}
-
-const PaymentPage = () => {
+// Inner component that uses client-side hooks
+function PaymentPageContent() {
   const { state, dispatch } = useCart();
   const router = useRouter();
   const searchParams = useSearchParams();
-  
+
   const [customerInfo, setCustomerInfo] = useState({
-    email: searchParams.get('email') || "",
-    name: searchParams.get('name') || "",
-    address: searchParams.get('address') || "",
-    phone: searchParams.get('phone') || "",
+    email: searchParams.get("email") || "",
+    name: searchParams.get("name") || "",
+    address: searchParams.get("address") || "",
+    phone: searchParams.get("phone") || "",
   });
-  
-  const [orderSuccess, setOrderSuccess] = useState(false);
+
+  const orderId = searchParams.get("orderId") || "";
+  // const [orderSuccess, setOrderSuccess] = useState(false);
 
   // Calculate totals
   const subtotal = state.total;
@@ -34,63 +27,37 @@ const PaymentPage = () => {
   const shipping = 0; // Free shipping
   const total = subtotal + tax + shipping;
 
-  const handlePayNow = async () => {
-    try {
-      // Send customer information and cart items to the API
-      const response = await fetch("/api/orders", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email: customerInfo.email,
-          name: customerInfo.name,
-          address: customerInfo.address,
-          phone: customerInfo.phone,
-          paymentMethod: "instant_payment",
-          cartItems: state.items,
-          total: total,
-        }),
-      });
+  // const handlePayNow = async () => {
+  //   // In a real implementation, this would process payment via a payment gateway
+  //   // For now, we'll just show a success message since the order is already created
 
-      const result = await response.json();
+  //   // Clear the cart after successful payment
+  //   dispatch({ type: "CLEAR_CART" });
 
-      if (result.success) {
-        // Clear the cart after successful order placement
-        dispatch({ type: "CLEAR_CART" });
+  //   setOrderSuccess(true);
+  // };
 
-        setOrderSuccess(true);
-      } else {
-        console.error("Failed to place order:", result.message);
-        alert("Failed to place order: " + result.message);
-      }
-    } catch (err) {
-      console.error("Error processing payment:", err);
-      alert("An error occurred while processing your payment. Please try again.");
-    }
-  };
-
-  if (orderSuccess) {
-    return (
-      <div className="flex items-center justify-center">
-        <div className="bg-white p-8 rounded-xl shadow-md max-w-md w-full mx-4 text-center">
-          <div className="text-green-500 text-5xl mb-4">✓</div>
-          <h2 className="text-2xl font-bold text-gray-800 mb-4">
-            Payment Successful!
-          </h2>
-          <p className="text-gray-600 mb-6">
-            Thank you! Your payment has been processed successfully.
-          </p>
-          <button
-            onClick={() => router.push("/")}
-            className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-md inline-block"
-          >
-            Continue Shopping
-          </button>
-        </div>
-      </div>
-    );
-  }
+  // if (orderSuccess) {
+  //   return (
+  //     <div className="flex items-center justify-center">
+  //       <div className="bg-white p-8 rounded-xl shadow-md max-w-md w-full mx-4 text-center">
+  //         <div className="text-green-500 text-5xl mb-4">✓</div>
+  //         <h2 className="text-2xl font-bold text-gray-800 mb-4">
+  //           Payment Successful!
+  //         </h2>
+  //         <p className="text-gray-600 mb-6">
+  //           Thank you! Your payment has been processed successfully.
+  //         </p>
+  //         <button
+  //           onClick={() => router.push("/")}
+  //           className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-md inline-block"
+  //         >
+  //           Continue Shopping
+  //         </button>
+  //       </div>
+  //     </div>
+  //   );
+  // }
 
   if (state.items.length === 0) {
     return (
@@ -113,7 +80,9 @@ const PaymentPage = () => {
       <div className="container mx-auto px-4">
         <div className="bg-white rounded-xl shadow-md overflow-hidden max-w-6xl mx-auto">
           <div className="p-6 border-b border-gray-200">
-            <h1 className="text-2xl font-bold text-gray-800">Payment Details</h1>
+            <h1 className="text-2xl font-bold text-gray-800">
+              Payment Details
+            </h1>
             <p className="text-gray-600">
               Review your order and complete the payment
             </p>
@@ -202,10 +171,12 @@ const PaymentPage = () => {
                 <h2 className="text-lg font-semibold text-gray-800 mb-4">
                   Customer Information
                 </h2>
-                
+
                 <div className="mb-6 p-4 bg-gray-50 rounded-lg">
                   <div className="mb-2">
-                    <p className="text-sm font-medium text-gray-600">Full Name</p>
+                    <p className="text-sm font-medium text-gray-600">
+                      Full Name
+                    </p>
                     <p className="text-gray-900">{customerInfo.name}</p>
                   </div>
                   <div className="mb-2">
@@ -225,21 +196,30 @@ const PaymentPage = () => {
                 <h2 className="text-lg font-semibold text-gray-800 mb-4">
                   Payment Information
                 </h2>
-                
+
                 <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
                   <div className="flex justify-between items-center">
                     <div>
-                      <p className="text-sm font-medium text-gray-600">Payment Method</p>
-                      <p className="text-gray-900 font-medium">Instant Payment (Online)</p>
+                      <p className="text-sm font-medium text-gray-600">
+                        Payment Method
+                      </p>
+                      <p className="text-gray-900 font-medium">
+                        Instant Payment (Online)
+                      </p>
+                      {orderId && (
+                        <p className="text-sm text-gray-600">
+                          Order ID: {orderId}
+                        </p>
+                      )}
                     </div>
-                    <div className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm">
-                      Pending
+                    <div className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-sm">
+                      Pending Payment
                     </div>
                   </div>
                 </div>
 
                 <button
-                  onClick={handlePayNow}
+                  // onClick={handlePayNow}
                   className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-md transition-colors duration-300"
                 >
                   Pay Now - ৳{total.toFixed(2)}
@@ -260,6 +240,13 @@ const PaymentPage = () => {
       </div>
     </div>
   );
-};
+}
 
-export default PaymentPage;
+// Main page component with suspense boundary
+export default function PaymentPage() {
+  return (
+    <Suspense fallback={<div>Loading payment details...</div>}>
+      <PaymentPageContent />
+    </Suspense>
+  );
+}
