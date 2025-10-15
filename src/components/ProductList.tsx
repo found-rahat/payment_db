@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useCart } from "@/context/CartContext";
+import toast from "react-hot-toast";
 
 interface Product {
   id: number;
@@ -71,7 +72,8 @@ const ProductList: React.FC = () => {
 
   // Handle Buy Now action (add to cart with quantity 1, then go to checkout)
   const handleBuyNow = (product: Product) => {
-    dispatch({ type: "ADD_ITEM", payload: product });
+    dispatch({ type: "ADD_ITEM_BUY_NOW", payload: product });
+    toast.success(`${product.name} added to cart! Proceeding to checkout...`);
     window.location.href = `/checkout`;
   };
 

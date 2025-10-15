@@ -9,7 +9,7 @@ const Header = () => {
   return (
     <div className="bg-white shadow-sm py-4">
       <div className="container mx-auto px-4 flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-gray-800">Online Payment</h1>
+        <h1 className="text-2xl font-bold text-gray-800">Online Payment system</h1>
         <div className="flex space-x-3">
           <Link 
             href="/cart" 
