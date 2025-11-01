@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCart } from "@/context/CartContext";
 import { PrismaClient } from "@prisma/client";
 
@@ -17,6 +18,7 @@ interface CartItem {
 
 const CheckoutPage = () => {
   const { state, dispatch } = useCart();
+  const router = useRouter();
   const [orderSuccess, setOrderSuccess] = useState(false);
   const [customerInfo, setCustomerInfo] = useState({
     email: "",
@@ -24,6 +26,7 @@ const CheckoutPage = () => {
     address: "",
     phone: "",
   });
+  const [paymentMethod, setPaymentMethod] = useState<string>("cash_on_delivery");
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Calculate totals
@@ -67,10 +70,12 @@ const CheckoutPage = () => {
     if (!customerInfo.address) {
       newErrors.address = "Shipping address is required";
     }
-    
+
     if (!customerInfo.phone) {
       newErrors.phone = "Phone number is required";
-    } else if (!/^\d{10,15}$/.test(customerInfo.phone.replace(/[\s\-\(\)]/g, ""))) {
+    } else if (
+      !/^\d{10,15}$/.test(customerInfo.phone.replace(/[\s\-\(\)]/g, ""))
+    ) {
       newErrors.phone = "Phone number must be 10-15 digits";
     }
 
@@ -86,32 +91,71 @@ const CheckoutPage = () => {
     }
 
     try {
-      // Send customer information and cart items to the API
-      const response = await fetch('/api/orders', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email: customerInfo.email,
-          name: customerInfo.name,
-          address: customerInfo.address,
-          phone: customerInfo.phone,
-          cartItems: state.items,
-          total: total,
-        }),
-      });
+      if (paymentMethod === "instant_payment") {
+        // For instant payment, first store the order in the database
+        const response = await fetch("/api/orders", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            email: customerInfo.email,
+            name: customerInfo.name,
+            address: customerInfo.address,
+            phone: customerInfo.phone,
+            paymentMethod: paymentMethod,
+            cartItems: state.items,
+            total: total,
+          }),
+        });
 
-      const result = await response.json();
+        const result = await response.json();
 
-      if (result.success) {
-        // Clear the cart after successful order placement
-        dispatch({ type: "CLEAR_CART" });
-
-        setOrderSuccess(true);
+        if (result.success) {
+          // Redirect to the payment page with customer info, order ID, and total
+          const queryString = new URLSearchParams({
+            email: customerInfo.email,
+            name: customerInfo.name,
+            address: customerInfo.address,
+            phone: customerInfo.phone,
+            order_id: result.orderId,
+            total: total.toString(),
+          }).toString();
+          
+          router.push(`/payment?${queryString}`);
+        } else {
+          console.error("Failed to create order:", result.message);
+          alert("Failed to create order: " + result.message);
+        }
       } else {
-        console.error("Failed to place order:", result.message);
-        alert("Failed to place order: " + result.message);
+        // For cash on delivery, proceed directly to order placement
+        const response = await fetch("/api/orders", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            email: customerInfo.email,
+            name: customerInfo.name,
+            address: customerInfo.address,
+            phone: customerInfo.phone,
+            paymentMethod: paymentMethod,
+            cartItems: state.items,
+            total: total,
+          }),
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          // Clear the cart after successful order placement
+          dispatch({ type: "CLEAR_CART" });
+
+          setOrderSuccess(true);
+        } else {
+          console.error("Failed to place order:", result.message);
+          alert("Failed to place order: " + result.message);
+        }
       }
     } catch (err) {
       console.error("Error processing checkout:", err);
@@ -206,12 +250,12 @@ const CheckoutPage = () => {
                             {item.category}
                           </p>
                           <p className="text-gray-900 font-bold">
-                            ${item.price.toFixed(2)} × {item.quantity}
+                            ৳{item.price.toFixed(2)} × {item.quantity}
                           </p>
                         </div>
                         <div className="text-right">
                           <p className="text-gray-900 font-bold">
-                            ${(item.price * item.quantity).toFixed(2)}
+                            ৳{(item.price * item.quantity).toFixed(2)}
                           </p>
                         </div>
                       </div>
@@ -222,25 +266,25 @@ const CheckoutPage = () => {
                     <div className="flex justify-between py-1">
                       <span className="text-gray-600">Subtotal</span>
                       <span className="font-medium text-black">
-                        ${subtotal.toFixed(2)}
+                        ৳{subtotal.toFixed(2)}
                       </span>
                     </div>
                     <div className="flex justify-between py-1">
                       <span className="text-gray-600">Shipping</span>
                       <span className="font-medium text-black">
-                        ${shipping.toFixed(2)}
+                        ৳{shipping.toFixed(2)}
                       </span>
                     </div>
                     <div className="flex justify-between py-1">
                       <span className="text-gray-600">Tax</span>
                       <span className="font-medium text-black">
-                        ${tax.toFixed(2)}
+                        ৳{tax.toFixed(2)}
                       </span>
                     </div>
                     <div className="flex justify-between py-3 mt-2 border-t border-gray-200">
                       <span className="font-semibold text-gray-800">Total</span>
                       <span className="font-bold text-gray-900">
-                        ${total.toFixed(2)}
+                        ৳{total.toFixed(2)}
                       </span>
                     </div>
                   </div>
@@ -351,11 +395,56 @@ const CheckoutPage = () => {
                     )}
                   </div>
 
+                  {/* Payment Method */}
+                  <div className="mt-6">
+                    <h3 className="text-md font-medium text-gray-800 mb-3">Payment Method</h3>
+                    <div className="space-y-3">
+                      <div className="flex items-center">
+                        <input
+                          type="radio"
+                          id="cash_on_delivery"
+                          name="paymentMethod"
+                          value="cash_on_delivery"
+                          checked={paymentMethod === "cash_on_delivery"}
+                          onChange={() => setPaymentMethod("cash_on_delivery")}
+                          className="h-4 w-4 text-blue-600 focus:ring-blue-500"
+                        />
+                        <label
+                          htmlFor="cash_on_delivery"
+                          className="ml-3 block text-sm font-medium text-gray-700"
+                        >
+                          Cash on Delivery
+                        </label>
+                      </div>
+                      <div className="flex items-center">
+                        <input
+                          type="radio"
+                          id="instant_payment"
+                          name="paymentMethod"
+                          value="instant_payment"
+                          checked={paymentMethod === "instant_payment"}
+                          onChange={() => setPaymentMethod("instant_payment")}
+                          className="h-4 w-4 text-blue-600 focus:ring-blue-500"
+                        />
+                        <label
+                          htmlFor="instant_payment"
+                          className="ml-3 block text-sm font-medium text-gray-700"
+                        >
+                          Instant Payment (Online)
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+
                   <button
                     type="submit"
-                    className="w-full bg-green-600 hover:bg-green-700 text-white font-medium py-3 px-4 rounded-md transition-colors duration-300 mt-6"
+                    className={`w-full ${
+                      paymentMethod === 'instant_payment' 
+                        ? 'bg-blue-600 hover:bg-blue-700' 
+                        : 'bg-green-600 hover:bg-green-700'
+                    } text-white font-medium py-3 px-4 rounded-md transition-colors duration-300 mt-6`}
                   >
-                    Place Order - ${total.toFixed(2)}
+                    {paymentMethod === 'instant_payment' ? 'Continue to Payment' : 'Place Order'} - ৳{total.toFixed(2)}
                   </button>
                 </form>
               </div>

@@ -92,7 +92,7 @@ const CartPage = () => {
                               {item.category}
                             </p>
                             <p className="text-gray-900 font-bold mt-1">
-                              ${item.price.toFixed(2)}
+                              ৳{item.price.toFixed(2)}
                             </p>
                           </div>
 
@@ -130,7 +130,7 @@ const CartPage = () => {
 
                         <div className="mt-2">
                           <p className="text-gray-600 text-sm">
-                            Subtotal: ${(item.price * item.quantity).toFixed(2)}
+                            Subtotal: ৳{(item.price * item.quantity).toFixed(2)}
                           </p>
                         </div>
                       </div>
@@ -161,7 +161,7 @@ const CartPage = () => {
                   <div className="flex justify-between">
                     <span className="text-gray-600">Subtotal</span>
                     <span className="font-medium text-black">
-                      ${subtotal.toFixed(2)}
+                      ৳{subtotal.toFixed(2)}
                     </span>
                   </div>
                   <div className="flex justify-between">

@@ -26,15 +26,29 @@ model Customer {
 }
 
 model Order {
-  id           Int      @id @default(autoincrement())
-  customerId   Int
-  totalAmount  Float
-  status       String   @default("pending")
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id            Int      @id @default(autoincrement())
+  customerId    Int
+  totalAmount   Float
+  paymentMethod String   @default("cash_on_delivery")
+  status        String   @default("pending")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  trx_id        String?
+  is_paid       Boolean @default(false)
+  paid_amount   Int?
   
   customer Customer @relation(fields: [customerId], references: [id])
   orderItems OrderItem[]
+}
+
+model session_store {
+        paymentID       String   @id
+        customer_id     Int
+        created_at      DateTime
+        data            Json
+        status          String @default("pending")
+
+        @@map("session_store")
 }
 
 model OrderItem {
