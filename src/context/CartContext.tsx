@@ -4,7 +4,7 @@ import React, { createContext, useContext, useReducer, ReactNode } from "react";
 import toast from "react-hot-toast";
 
 interface CartItem {
-  id: number;
+  id: number; //asiaios
   name: string;
   price: number;
   description: string;
