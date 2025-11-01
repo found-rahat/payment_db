@@ -176,8 +176,6 @@ const cartReducer = (state: CartState, action: CartAction): CartState => {
         0
       );
 
-
-
       // Save to localStorage
       localStorage.setItem("cart", JSON.stringify(updatedItems));
 
@@ -205,7 +203,10 @@ const cartReducer = (state: CartState, action: CartAction): CartState => {
 };
 
 // Custom hook to handle notifications based on cart state changes
-const useCartNotifications = (state: CartState, dispatch: React.Dispatch<CartAction>) => {
+const useCartNotifications = (
+  state: CartState,
+  dispatch: React.Dispatch<CartAction>
+) => {
   const prevItemsRef = React.useRef(state.items);
   const prevItemCountRef = React.useRef(state.itemCount);
   const hasInitializedRef = React.useRef(false);
@@ -221,13 +222,13 @@ const useCartNotifications = (state: CartState, dispatch: React.Dispatch<CartAct
 
     const prevItems = prevItemsRef.current;
     const prevItemCount = prevItemCountRef.current;
-    
+
     // Check if items were added (current has more items than previous)
     if (state.itemCount > prevItemCount) {
       // Find the new item that was added
-      const currentIds = new Set(state.items.map(item => item.id));
-      const prevIds = new Set(prevItems.map(item => item.id));
-      
+      const currentIds = new Set(state.items.map((item) => item.id));
+      const prevIds = new Set(prevItems.map((item) => item.id));
+
       // Look for items that are in current but not in previous
       for (const currentItem of state.items) {
         if (!prevIds.has(currentItem.id)) {
@@ -236,11 +237,11 @@ const useCartNotifications = (state: CartState, dispatch: React.Dispatch<CartAct
           break;
         }
       }
-      
+
       // Check if quantity of existing item was increased
       if (state.items.length === prevItems.length) {
-        const addedItem = state.items.find(item => {
-          const prevItem = prevItems.find(p => p.id === item.id);
+        const addedItem = state.items.find((item) => {
+          const prevItem = prevItems.find((p) => p.id === item.id);
           return prevItem && item.quantity > prevItem.quantity;
         });
         if (addedItem) {
@@ -248,21 +249,21 @@ const useCartNotifications = (state: CartState, dispatch: React.Dispatch<CartAct
         }
       }
     }
-    
+
     // Check if items were removed
     if (state.itemCount < prevItemCount) {
-      const currentIds = new Set(state.items.map(item => item.id));
-      const prevIds = new Set(prevItems.map(item => item.id));
-      
+      const currentIds = new Set(state.items.map((item) => item.id));
+      const prevIds = new Set(prevItems.map((item) => item.id));
+
       // Find item that was removed
       for (const prevItem of prevItems) {
         if (!currentIds.has(prevItem.id)) {
           toast.success(`${prevItem.name} removed from cart!`);
           break;
         }
-        
+
         // Check if quantity decreased
-        const currentItem = state.items.find(item => item.id === prevItem.id);
+        const currentItem = state.items.find((item) => item.id === prevItem.id);
         if (currentItem && currentItem.quantity < prevItem.quantity) {
           if (currentItem.quantity === 0) {
             toast.success(`${prevItem.name} removed from cart!`);
@@ -272,12 +273,12 @@ const useCartNotifications = (state: CartState, dispatch: React.Dispatch<CartAct
         }
       }
     }
-    
+
     // Check if cart was cleared
     if (prevItems.length > 0 && state.items.length === 0) {
       toast.success("Cart cleared!");
     }
-    
+
     // Update refs for next render
     prevItemsRef.current = state.items;
     prevItemCountRef.current = state.itemCount;
@@ -286,7 +287,7 @@ const useCartNotifications = (state: CartState, dispatch: React.Dispatch<CartAct
 
 export const CartProvider = ({ children }: { children: ReactNode }) => {
   const [state, dispatch] = useReducer(cartReducer, initialState);
-  
+
   // Use the custom notification hook
   useCartNotifications(state, dispatch);
 
